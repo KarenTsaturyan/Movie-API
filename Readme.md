@@ -86,6 +86,18 @@ should use the force command like so:
 ```$ migrate -path=./migrations -database=$EXAMPLE_DSN force 1```
 
 
+# Middleware
+```go 
+func (app *application) exampleMiddleware(next http.Handler) http.Handler {
+// Any code here will run only once, when we wrap something with the middleware.
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    // Any code here will run for every request that the middleware handles.
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+
 # INFO
 https://pgtune.leopard.in.ua/
 
