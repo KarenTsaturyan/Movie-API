@@ -98,6 +98,9 @@ func (app *application) exampleMiddleware(next http.Handler) http.Handler {
 ```
 
 
+# MAIL SMTP
+### used https://mailtrap.io/
+ 
 # INFO
 https://pgtune.leopard.in.ua/
 

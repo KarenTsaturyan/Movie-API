@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"movieapi.karentsaturyan/internal/data"
 	"movieapi.karentsaturyan/internal/jsonlog"
+	"movieapi.karentsaturyan/internal/mailer"
 )
 
 // Hard coded for now
@@ -31,6 +32,13 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 // Define an application struct to hold
@@ -40,6 +48,7 @@ type application struct {
 	config config
 	logger *jsonlog.Logger
 	models data.Models
+	mailer mailer.Mailer
 }
 
 func main() {
@@ -60,6 +69,12 @@ func main() {
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "4ec5ee0f8ee17d", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "edc37c43d58cf8", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "DS* <no-reply@ds.karen.net>", "SMTP sender")
+
 	flag.Parse()
 
 	// Initialize a new jsonlog.Logger which writes any messages *at or above* the INFO
@@ -79,6 +94,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
 	err = app.serve()
