@@ -112,6 +112,50 @@ func (app *application) exampleMiddleware(next http.Handler) http.Handler {
     6. Lastly, we’ll delete the activation token from our tokens table so that it can’t be used
     again.
 
+### AUTH
+
+#### 1. Basic Authentication
+- Client sends credentials (username:password) base64-encoded in Authorization header
+- **Example:** `Authorization: Basic YWxpY2VAZXhhbXBsZS5jb206cGE1NXdvcmQ=`
+- **Not ideal for hashed passwords** — requires expensive password hash verification on every request
+
+#### 2. Stateful Token Authentication
+- Client submits credentials → API generates & returns a bearer token
+- Token stored server-side (in DB) with user ID and expiry time
+- Client includes token in subsequent requests: `Authorization: Bearer <token>`
+- **Pros:** Full control over tokens, easy to revoke, better than basic auth
+- **Cons:** Requires database lookup on every request
+
+#### 3. Stateless Token Authentication
+- Token encodes user ID & expiry time, cryptographically signed/encrypted (JWT, PASETO, etc.)
+- No database lookup needed — all info contained in token
+- **Pros:** No DB lookup required, faster
+- **Cons:** Can't easily revoke tokens once issued (unless you maintain a blocklist)
+
+#### 4. API Key Authentication
+- User has non-expiring secret key; hash stored in DB alongside user ID
+- Client passes key in header: `Authorization: Key <key>`
+- **Pros:** Simple for clients, no token expiry management
+- **Cons:** Adds complexity (key regeneration), two secrets to manage (password + key)
+
+#### 5. OAuth 2.0 / OpenID Connect
+- User info stored with third-party provider (Google, Facebook, etc.)
+- **Note:** OAuth 2.0 is NOT an auth protocol — use OpenID Connect instead
+- Flow: Redirect to provider → user consents → receive ID token (JWT) → validate & decode
+- **Pros:** No need to store passwords, delegated auth
+- **Cons:** Complex implementation, requires user account with provider, needs browser interaction
+
+    * If your API doesn’t have ‘real’ user accounts with slow password hashes, then HTTP basic
+    authentication can be a good — and often overlooked — fit.
+    * If you don’t want to store user passwords yourself, all your users have accounts with a
+    third-party identity provider that supports OpenID Connect, and your API is the back-end
+    for a website… then use OpenID Connect.
+    * If you require delegated authentication, such as when your API has a microservice
+    architecture with different services for performing authentication and performing other
+    tasks, then use stateless authentication tokens.
+    * Otherwise use API keys or stateful authentication tokens. In general:
+        * Stateful authentication tokens are a nice fit for APIs that act as the back-end for a website or single-page application, as there is a natural moment when the user logsin where they can be exchanged for user credentials.
+        * In contrast, API keys can be better for more ‘general purpose’ APIs because they’re permanent and simpler for developers to use in their applications and scripts.
 
 # INFO
 https://pgtune.leopard.in.ua/
