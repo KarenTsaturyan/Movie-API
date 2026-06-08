@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"os"
+	"sync"
 	"time"
 
 	//Note: that we alias this import to the blank identifier, to stop the Go
@@ -49,6 +50,7 @@ type application struct {
 	logger *jsonlog.Logger
 	models data.Models
 	mailer mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {
@@ -101,7 +103,6 @@ func main() {
 	if err != nil {
 		logger.PrintFatal(err, nil)
 	}
-	logger.PrintFatal(err, nil)
 }
 
 func openDB(cfg config) (*sql.DB, error) {
