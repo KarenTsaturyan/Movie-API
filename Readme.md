@@ -157,8 +157,86 @@ func (app *application) exampleMiddleware(next http.Handler) http.Handler {
         * Stateful authentication tokens are a nice fit for APIs that act as the back-end for a website or single-page application, as there is a natural moment when the user logsin where they can be exchanged for user credentials.
         * In contrast, API keys can be better for more ‘general purpose’ APIs because they’re permanent and simpler for developers to use in their applications and scripts.
 
+### CORS
+
+**Cross-Origin Resource Sharing (CORS)** is a security mechanism that allows resources on a web page to be requested from another domain outside the domain from which the first resource was served.
+
+#### Simple Requests
+A request is considered **simple** if it meets ALL of the following criteria:
+- **Method:** GET, HEAD, or POST
+- **Headers:** Only the following are allowed:
+  - `Accept`
+  - `Accept-Language`
+  - `Content-Language`
+  - `Content-Type` (with specific MIME types only: `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`)
+  - `DPR`, `Downlink`, `Save-Data`, `Viewport-Width`, `Width`
+- **Credentials:** Request does NOT include cookies or HTTP authentication
+- **No event listeners:** No `XMLHttpRequestUpload` event listeners are attached
+
+For simple requests, the browser sends the request directly with an `Origin` header. The server responds with `Access-Control-Allow-Origin` and the browser checks if the origin matches before making data available to JavaScript.
+
+#### Preflight Requests
+If a request does **NOT** meet the criteria for a simple request, the browser automatically sends a **preflight** request first (an OPTIONS request) to check if the actual request is allowed.
+
+Preflight is triggered by:
+- **Methods:** PUT, DELETE, PATCH, or other custom methods
+- **Custom Headers:** Any header not in the simple list (e.g., `Authorization`, `X-Custom-Header`)
+- **Content-Type:** `application/json`, `application/xml`, or other non-simple MIME types
+- **Credentials:** Request includes credentials (cookies, authentication)
+
+**Preflight Flow:**
+```
+1. Browser sends OPTIONS request with headers:
+   - Origin: https://example.com
+   - Access-Control-Request-Method: PUT
+   - Access-Control-Request-Headers: Content-Type, Authorization
+
+2. Server responds with CORS headers:
+   - Access-Control-Allow-Origin: https://example.com
+   - Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+   - Access-Control-Allow-Headers: Content-Type, Authorization
+   - Access-Control-Max-Age: 86400 (caches preflight for this duration)
+
+3. If preflight succeeds, browser sends the actual request
+4. If preflight fails, browser blocks the actual request
+```
+
+#### Key CORS Response Headers
+- **Access-Control-Allow-Origin:** Specifies which origins can access the resource
+  - Example: `Access-Control-Allow-Origin: https://example.com` or `*` (all origins)
+- **Access-Control-Allow-Methods:** Specifies allowed HTTP methods
+  - Example: `Access-Control-Allow-Methods: GET, POST, PUT, DELETE`
+- **Access-Control-Allow-Headers:** Specifies allowed request headers
+  - Example: `Access-Control-Allow-Headers: Content-Type, Authorization`
+- **Access-Control-Max-Age:** How long (in seconds) preflight responses can be cached
+  - Example: `Access-Control-Max-Age: 86400`
+- **Access-Control-Allow-Credentials:** Whether credentials (cookies, auth) are allowed
+  - Example: `Access-Control-Allow-Credentials: true`
+- **Vary: Origin:** Indicates the response varies based on the Origin header (important for caching)
+
+#### CORS with Credentials
+If your API needs to handle requests with credentials (cookies, HTTP auth):
+1. Server must set: `Access-Control-Allow-Credentials: true`
+2. Client must set credentials in the request (e.g., `credentials: 'include'` in fetch)
+3. Server **cannot** use `*` for `Access-Control-Allow-Origin` — must specify the exact origin
+
+#### CORS Middleware Implementation
+A typical CORS middleware should:
+1. Extract the `Origin` header from the request
+2. Check if the origin is in your allowed list
+3. For preflight (OPTIONS) requests, respond with appropriate CORS headers
+4. For actual requests, include CORS headers in the response
+5. Always include `Vary: Origin` to prevent caching issues
+
 # INFO
 https://pgtune.leopard.in.ua/
+
+So because of this we should make sure to always set a Vary: Origin response header to
+warn any caches that the response may be different. This is actually really important, and it
+can be the cause of subtle bugs like this one if you forget to do it. As a rule of thumb:
+If your code makes a decision about what to return based on the content of a request header,
+you should include that header name in your Vary response header — even if the request
+didn’t include that header.
 
 https://www.enterprisedb.com/postgres-tutorials/how-tune-postgresql-memory
 ## So how does the sql.DB connection pool work?
