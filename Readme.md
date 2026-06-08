@@ -100,7 +100,19 @@ func (app *application) exampleMiddleware(next http.Handler) http.Handler {
 
 # MAIL SMTP
 ### used https://mailtrap.io/
- 
+### Activaiton
+    1. As part of the registration process for a new user we will create a cryptographicallysecure random activation token that is impossible to guess.
+    2. We will then store a hash of this activation token in a new tokens table, alongside the
+    new user’s ID and an expiry time for the token.
+    3. We will send the original (unhashed) activation token to the user in their welcome email.
+    4. The user subsequently submits their token to a new PUT /v1/users/activated
+    endpoint.
+    5. If the hash of the token exists in the tokens table and hasn’t expired, then we’ll update
+    the activated status for the relevant user to true.
+    6. Lastly, we’ll delete the activation token from our tokens table so that it can’t be used
+    again.
+
+
 # INFO
 https://pgtune.leopard.in.ua/
 
