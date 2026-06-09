@@ -18,10 +18,12 @@ import (
 	"movieapi.karentsaturyan/internal/data"
 	"movieapi.karentsaturyan/internal/jsonlog"
 	"movieapi.karentsaturyan/internal/mailer"
+	"movieapi.karentsaturyan/internal/vcs"
 )
 
-// Hard coded for now
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 type config struct {
 	port int
