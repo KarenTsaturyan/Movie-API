@@ -228,6 +228,143 @@ A typical CORS middleware should:
 4. For actual requests, include CORS headers in the response
 5. Always include `Vary: Origin` to prevent caching issues
 
+# Deployment
+### Create SSH key
+Create server Ubuntu 20.04 (LTS) x64.
+ssh-keygen -t rsa -b 4096 -C "user@name.mail.net" -f $HOME/.ssh/id_rsa_project_name
+
+add your public key $HOME/.ssh/id_rsa_greenlight.pub to the server
+
+using ip of the server try to connect
+ssh root@45.55.49.88
+
+## Deploy to Droplet [01.sh is an example and might vary.]
+
+### Step 1: Copy setup script to droplet
+Use rsync to copy the setup script to the droplet (replace IP with your own):
+```bash
+rsync -rP --delete ./remote/setup root@<IP>:/root
+```
+Flags: `-r` (recursive), `-P` (progress), `--delete` (remove extraneous files)
+
+### Step 2: Execute setup script on remote
+```bash
+ssh -t root@<IP> "bash /root/setup/01.sh"
+```
+You'll be prompted to enter a password for the PostgreSQL greenlight user. The script will:
+- Enable universe repository
+- Update system packages
+- Set timezone and install locales
+- Create greenlight user with sudo privileges
+- Configure firewall (SSH, HTTP, HTTPS)
+- Install fail2ban, migrate CLI, and PostgreSQL
+- Create greenlight database and role
+- Install Caddy web server
+- Reboot the server
+
+**Note:** You may see a prompt about `/etc/ssh/sshd_config` — select "keep the local version" and continue.
+
+### Step 3: Connect as greenlight user
+After reboot (wait ~1 minute), connect as greenlight user:
+```bash
+ssh greenlight@<IP>
+```
+You'll be forced to change your password on first login. This is your sudo password, not SSH password.
+
+### Verification
+Once connected, verify key components:
+```bash
+# Check migrate CLI version
+greenlight@greenlight-production:~$ migrate -version
+
+# Test PostgreSQL connection
+greenlight@greenlight-production:~$ psql $GREENLIGHT_DB_DSN
+
+# Check Caddy service status
+greenlight@greenlight-production:~$ sudo systemctl status caddy
+```
+All services should be running. Visit `http://<your_droplet_ip>` in a browser to see the Caddy welcome page.
+
+run ```make production/deploy/api```
+
+Allow 4000 port
+greenlight@greenlight-production:~$ sudo ufw allow 4000/tcp
+Rule added
+Rule added (v6)
+
+And then start the API with the following command:
+greenlight@greenlight-production:~$ ./api -port=4000 -db-dsn=$GREENLIGHT_DB_DSN -env=production
+
+## Configure systemd Unit File
+
+After creating the `api.service` unit file, you need to:
+
+### Step 1: Copy unit file to droplet
+```bash
+rsync -rP ./remote/production/api.service greenlight@<IP>:~/
+```
+
+### Step 2: Move unit file to systemd directory
+```bash
+ssh greenlight@<IP> "sudo mv ~/api.service /etc/systemd/system/"
+```
+(Requires sudo since `/etc/systemd/system/` is owned by root)
+
+### Step 3: Enable the service
+```bash
+ssh greenlight@<IP> "sudo systemctl enable api"
+```
+This makes systemd aware of the service and auto-starts it on reboot.
+
+### Step 4: Start the service
+```bash
+ssh greenlight@<IP> "sudo systemctl restart api"
+```
+
+### Verify service status
+```bash
+ssh greenlight@<IP> "sudo systemctl status api"
+```
+You should see: `Active: active (running)`
+
+The service will now:
+- Auto-start on server reboot
+- Run as the greenlight user
+- Use environment variables from `/etc/environment`
+- Auto-restart on failure (max 5 times in 600 seconds)
+- Listen on port 4000
+
+run make production/deploy/api again after we created api.service
+
+our api service is running successfully in the background
+
+### logs
+sudo journalctl -u api
+
+### Caddy 
+with Caddy we can permit usage of debug route giving 403 status.
+Give Domain name, and so on.
+Create Caddyfile [Check docs for additional info].
+....
+
+
+## Pointers
+  Use single low-powered droplet running Caddy, PostgreSQL, and the Go application.
+  This is what we currently have.
+    ↓ Upgrade the droplet to have more CPU and/or memory as necessary.
+    ↓ Move PostgreSQL to a separate droplet, or use a managed database.
+    ↓ Upgrade droplets/managed databases to have more CPU and/or memory as
+    necessary.
+  If the droplet running the Go application is a bottleneck:
+    ↓ Profile and optimize your Go application code.
+    ↓ Run the Go application on multiple droplets, behind a load balancer.
+  If the PostgreSQL database is a bottleneck:
+    ↓ Profile and optimize the database settings and database queries.
+    ↓ If appropriate, cache the results of expensive/frequent database queries.
+    ↓ If appropriate, move some operations to an in-memory database such as Redis.
+    ↓ Start using read-only database replicas for queries where possible.
+    ↓ Start sharding the database.
+    
 # INFO
 https://pgtune.leopard.in.ua/
 
@@ -261,7 +398,7 @@ $ go build -a -o=/bin/foo ./cmd/foo # Force all packages to be rebuilt
 $ go clean -cache # Remove everything from the build cache
 
 ./bin/api -version
-  Version: 1.0.0
+  Version: 1.0.0 -> it is git commit hash now
 EXITS APP
 
 https://www.enterprisedb.com/postgres-tutorials/how-tune-postgresql-memory
