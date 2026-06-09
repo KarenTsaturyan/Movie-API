@@ -238,6 +238,32 @@ If your code makes a decision about what to return based on the content of a req
 you should include that header name in your Vary response header — even if the request
 didn’t include that header.
 
+
+### MAKE Vendor
+
+run make vendor after you install some dependecy:
+  To mitigate that, it’s a good idea to run both go mod verify and go mod vendor
+  regularly. Using go mod verify will verify that the dependencies in your module cache
+  match the go.sum file, and go mod vendor will copy those same dependencies from
+  the module cache into your vendor folder. This is one of the reasons why our
+  make vendor rule is setup to run both commands, and why we’ve also included it as a
+  prerequisite to the make audit rule.
+
+
+### Build
+  $ go env GOCACHE /home/user/.cache/go-build
+You should also be aware that the build cache does not automatically detect any changes to
+C libraries that your code imports with cgo. So, if you’ve changed a C library since the last
+build, you’ll need to use the -a flag to force all packages to be rebuilt when running
+go build. Alternatively, you could use go clean to purge the cache:
+
+$ go build -a -o=/bin/foo ./cmd/foo # Force all packages to be rebuilt
+$ go clean -cache # Remove everything from the build cache
+
+./bin/api -version
+  Version: 1.0.0
+EXITS APP
+
 https://www.enterprisedb.com/postgres-tutorials/how-tune-postgresql-memory
 ## So how does the sql.DB connection pool work?
     The most important thing to understand is that a sql.DB pool contains two types of
