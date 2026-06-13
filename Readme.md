@@ -1,3 +1,5 @@
+# This Movie API is based on real production API, I created this one with the same architecture, and following best practises as much as I could, but with **MOVIES** as an example of the resource.
+
 # Setup
 ## Postgres
 sudo -u postgres psql
